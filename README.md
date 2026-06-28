@@ -17,6 +17,7 @@ At startup, the plugin:
 - OpenCode 1.17.7 or newer
 - A running [Kiro Gateway](https://github.com/jwadow/kiro-gateway) instance (defaults to `http://localhost:8000`)
 - A Kiro API key (`ksk_*`) — generate one from kiro-cli settings
+- For credit usage display: requires [jwadow/kiro-gateway#212](https://github.com/jwadow/kiro-gateway/pull/212) (adds `/v1/credits` endpoint and `ksk_*` API key passthrough)
 
 ## Install
 
