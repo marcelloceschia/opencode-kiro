@@ -1,0 +1,69 @@
+import type { Hooks } from "@opencode-ai/plugin";
+import { z } from "zod";
+export type OpenCodeConfig = Parameters<NonNullable<Hooks["config"]>>[0];
+export type ProviderConfig = NonNullable<OpenCodeConfig["provider"]>[string];
+export type ModelConfig = NonNullable<ProviderConfig["models"]>[string];
+export type LogLevel = "debug" | "info" | "warn" | "error";
+export type PluginLogger = (level: LogLevel, message: string, extra?: Record<string, unknown>) => Promise<void>;
+export declare const GatewayModelSchema: z.ZodObject<{
+    id: z.ZodString;
+    object: z.ZodLiteral<"model">;
+    created: z.ZodNumber;
+    owned_by: z.ZodString;
+    description: z.ZodOptional<z.ZodString>;
+}, z.core.$strip>;
+export declare const GatewayModelsResponseSchema: z.ZodObject<{
+    object: z.ZodLiteral<"list">;
+    data: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        object: z.ZodLiteral<"model">;
+        created: z.ZodNumber;
+        owned_by: z.ZodString;
+        description: z.ZodOptional<z.ZodString>;
+    }, z.core.$strip>>;
+}, z.core.$strip>;
+export type GatewayModel = z.infer<typeof GatewayModelSchema>;
+export type GatewayModelsResponse = z.infer<typeof GatewayModelsResponseSchema>;
+export declare const GatewayCreditsSchema: z.ZodObject<{
+    plan: z.ZodString;
+    email: z.ZodOptional<z.ZodString>;
+    credits: z.ZodObject<{
+        limit: z.ZodNumber;
+        used: z.ZodNumber;
+        overage: z.ZodNumber;
+        overage_charges_usd: z.ZodOptional<z.ZodNumber>;
+        overage_rate_usd: z.ZodOptional<z.ZodNumber>;
+        overage_cap: z.ZodOptional<z.ZodNumber>;
+    }, z.core.$strip>;
+    next_reset: z.ZodNumber;
+}, z.core.$strip>;
+export type GatewayCredits = z.infer<typeof GatewayCreditsSchema>;
+export interface ModelsDevEntry {
+    name?: string;
+    reasoning?: boolean;
+    tool_call?: boolean;
+    attachment?: boolean;
+    temperature?: boolean;
+    structured_output?: boolean;
+    limit?: {
+        context?: number;
+        input?: number;
+        output?: number;
+    };
+    modalities?: {
+        input?: string[];
+        output?: string[];
+    };
+    cost?: {
+        input?: number;
+        output?: number;
+        cache_read?: number;
+        cache_write?: number;
+    };
+}
+export type ModelsDevData = Record<string, ModelsDevEntry>;
+export interface CreditInfo {
+    used: number;
+    limit: number;
+}
+//# sourceMappingURL=index.d.ts.map

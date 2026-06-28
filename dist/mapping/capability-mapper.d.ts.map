@@ -1,0 +1,1 @@
+{"version":3,"file":"capability-mapper.d.ts","sourceRoot":"","sources":["../../src/mapping/capability-mapper.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,WAAW,EAAE,cAAc,EAAE,UAAU,EAAE,MAAM,mBAAmB,CAAA;AAOhF,wBAAgB,aAAa,CAC3B,MAAM,EAAE,MAAM,EACd,KAAK,EAAE,cAAc,GAAG,SAAS,EACjC,OAAO,EAAE,UAAU,GAAG,SAAS,GAC9B,WAAW,CAiDb"}
