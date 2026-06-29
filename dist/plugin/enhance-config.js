@@ -5,7 +5,7 @@ import { mapKiroIdToModelsDev } from "../mapping/id-mapper.js";
 import { toModelConfig } from "../mapping/capability-mapper.js";
 export const DEFAULT_BASE_URL = "http://localhost:8000/v1";
 const SERVICE = "opencode-kiro";
-function resolveApiKey(raw) {
+export function resolveApiKey(raw) {
     if (typeof raw !== "string" || raw.length === 0)
         return process.env["KIRO_API_KEY"];
     const envMatch = raw.match(/^\{env:([^}]+)\}$/);
@@ -16,7 +16,7 @@ function resolveApiKey(raw) {
 function formatResetDate(timestamp) {
     return new Date(timestamp * 1000).toISOString().slice(0, 10);
 }
-export async function enhanceConfig(config, log) {
+export async function enhanceConfig(config, log, onResolved) {
     const existing = config.provider?.kiro;
     const baseURL = typeof existing?.options?.baseURL === "string" && existing.options.baseURL.length > 0
         ? existing.options.baseURL
@@ -26,6 +26,7 @@ export async function enhanceConfig(config, log) {
         await log("debug", `${SERVICE}: no API key configured, skipping discovery`, { baseURL });
         return;
     }
+    onResolved?.(baseURL, apiKey);
     // Fetch all three data sources in parallel
     const [gatewayModels, gatewayCredits, modelsDevData] = await Promise.all([
         fetchGatewayModels(baseURL, apiKey),
