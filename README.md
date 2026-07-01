@@ -1,23 +1,24 @@
 # opencode-kiro
 
-OpenCode plugin for [Kiro Gateway](https://github.com/jwadow/kiro-gateway) with dynamic model discovery, [models.dev](https://models.dev) capability enrichment, and credit usage display.
+OpenCode plugin for [Kiro Gateway](https://github.com/jwadow/kiro-gateway) with dynamic model discovery, credit usage display, and reasoning effort variants.
 
 ## What it does
 
 At startup, the plugin:
 
 1. Connects to your Kiro Gateway and fetches available models from `GET /v1/models`
-2. Fetches model capability data (context limits, reasoning, costs, modalities) from models.dev
-3. Fetches your credit usage from `GET /v1/credits`
-4. Injects discovered models into the opencode `kiro` provider — enriched with capabilities and annotated with credit usage
-5. Never overwrites models you have already configured explicitly
+2. Fetches your credit usage from `GET /v1/credits`
+3. Injects discovered models into the opencode `kiro` provider — with capabilities derived from the gateway response
+4. Adds reasoning effort `variants` for models that support them (e.g., low/medium/high/xhigh/max)
+5. Estimates cost per 1M tokens from the gateway's `rate_multiplier`
+6. Never overwrites models you have already configured explicitly
 
 ## Requirements
 
 - OpenCode 1.17.7 or newer
 - A running [Kiro Gateway](https://github.com/jwadow/kiro-gateway) instance (defaults to `http://localhost:8000`)
 - A Kiro API key (`ksk_*`) — generate one from kiro-cli settings
-- For credit usage display: requires [jwadow/kiro-gateway#212](https://github.com/jwadow/kiro-gateway/pull/212) (adds `/v1/credits` endpoint and `ksk_*` API key passthrough)
+- For credit usage and cost display: requires [jwadow/kiro-gateway#212](https://github.com/jwadow/kiro-gateway/pull/212) (adds `/v1/credits` endpoint and `ksk_*` API key passthrough)
 
 ## Install
 
@@ -26,7 +27,7 @@ Add to `opencode.json`:
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["opencode-kiro"]
+  "plugin": ["opencode-kiro@git+https://github.com/marcelloceschia/opencode-kiro.git"]
 }
 ```
 
@@ -36,7 +37,7 @@ The plugin reads from the `provider.kiro` block. All fields are optional.
 
 ```json
 {
-  "plugin": ["opencode-kiro"],
+  "plugin": ["opencode-kiro@git+https://github.com/marcelloceschia/opencode-kiro.git"],
   "provider": {
     "kiro": {
       "options": {
@@ -69,23 +70,32 @@ Or inline in the config (not recommended for shared configs):
 
 ## Model discovery
 
-The plugin discovers all models the gateway exposes and enriches them with data from [models.dev](https://models.dev):
+The plugin discovers all models the gateway exposes and maps capabilities from the response:
 
-- Context and output token limits
-- Reasoning and tool-call support flags
-- Temperature and attachment support
-- Input/output modalities
-- Cost per million tokens
+- `context_window` → context limit
+- `max_output_tokens` → output limit
+- `supported_inputs` → attachment support, modalities
+- `reasoning_efforts` → reasoning flag + variants (effort levels in model picker)
+- `rate_multiplier` → estimated cost per 1M tokens
 
-Model names are annotated with your current credit usage:
+Model names are annotated with usage info:
 
 ```
-Claude Sonnet 4.6 [150/1000]
+Claude Opus 4.8 [150/1000 · 2.2x · ≈$0.044/1MT]
+```
+
+### Reasoning effort variants
+
+Models with `reasoning_efforts` get variant entries in the model picker:
+
+```
+claude-opus-4.8 → low, medium, high, xhigh, max
+claude-sonnet-4.6 → low, medium, high, max
 ```
 
 ### Overriding a discovered model
 
-Any model you define under `provider.kiro.models` takes precedence over discovery. The plugin will never overwrite it:
+Any model you define under `provider.kiro.models` takes precedence over discovery:
 
 ```json
 {
@@ -94,7 +104,7 @@ Any model you define under `provider.kiro.models` takes precedence over discover
       "options": { "apiKey": "{env:KIRO_API_KEY}" },
       "models": {
         "claude-sonnet-4.6": {
-          "name": "Sonnet (no credits display)",
+          "name": "Sonnet (custom)",
           "limit": { "context": 200000, "output": 32000 }
         }
       }
@@ -103,28 +113,16 @@ Any model you define under `provider.kiro.models` takes precedence over discover
 }
 ```
 
-## Supported model families
+## Commands
 
-Convention-based mapping to models.dev:
-
-| Kiro model prefix | models.dev lab |
-|---|---|
-| `claude-*` | `anthropic` |
-| `qwen*` | `alibaba` |
-| `minimax-*` | `minimax` |
-| `deepseek-*` | `deepseek` |
-| `glm-*` | `zhipuai` |
-| `auto` | bundled defaults |
-
-Models that don't match any rule still appear with safe fallback defaults (`reasoning: true`, `tool_call: true`, 200k context).
+- `/kiro-quota` — Check your current Kiro credit usage (plan, credits used/limit, overage, reset date)
 
 ## Error handling
 
 All network calls degrade gracefully:
 
 - **Gateway unreachable** — skips discovery, logs a warning. Manually configured models still work.
-- **models.dev unreachable** — uses fallback defaults for all discovered models.
-- **Credits endpoint fails** — model names appear without credit annotation.
+- **Credits endpoint fails** — models still load, but without cost estimates or credit annotations.
 
 ## License
 
