@@ -6,9 +6,9 @@ function annotate(name, model, credits) {
     const mult = model.rate_multiplier;
     if (typeof mult === "number") {
         parts.push(`${mult}x`);
-        // Estimated $/request: rate_multiplier × overage $/credit (defaults to $0.04)
-        const rate = credits?.overageRate ?? 0.04;
-        const perReq = mult * rate;
+        const overageRate = credits?.overageRate ?? 0.04;
+        const normalRate = overageRate / 2;
+        const perReq = mult * normalRate;
         parts.push(`≈$${perReq.toFixed(3)}/req`);
     }
     if (parts.length === 0)
