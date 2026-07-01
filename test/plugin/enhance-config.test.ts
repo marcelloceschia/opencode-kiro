@@ -8,34 +8,21 @@ vi.mock("../../src/discovery/gateway-models.ts", () => ({
 vi.mock("../../src/discovery/gateway-credits.ts", () => ({
   fetchGatewayCredits: vi.fn(),
 }))
-vi.mock("../../src/discovery/models-dev.ts", () => ({
-  fetchModelsDevData: vi.fn(),
-}))
 
 import { fetchGatewayModels } from "../../src/discovery/gateway-models.ts"
 import { fetchGatewayCredits } from "../../src/discovery/gateway-credits.ts"
-import { fetchModelsDevData } from "../../src/discovery/models-dev.ts"
 
 const mockLog: PluginLogger = vi.fn(async () => {})
 
 const GATEWAY_MODELS = [
   { id: "auto", object: "model" as const, created: 1, owned_by: "kiro", context_window: 1_000_000, max_output_tokens: 64_000, supported_inputs: ["TEXT", "IMAGE"] },
   { id: "claude-sonnet-4.6", object: "model" as const, created: 1, owned_by: "kiro", context_window: 1_000_000, max_output_tokens: 64_000, supported_inputs: ["TEXT", "IMAGE"], reasoning_efforts: ["low", "medium", "high", "max"] },
-  { id: "qwen3-coder-next", object: "model" as const, created: 1, owned_by: "kiro", context_window: 256_000, max_output_tokens: 64_000, supported_inputs: ["TEXT"] },
+  { id: "qwen3-coder-next", object: "model" as const, created: 1, owned_by: "kiro", context_window: 256_000, max_output_tokens: 64_000, supported_inputs: ["TEXT"], rate_multiplier: 0.05 },
 ]
-
-const MODELS_DEV_DATA = {
-  "anthropic/claude-sonnet-4-6": {
-    name: "Claude Sonnet 4.6",
-    reasoning: true,
-    tool_call: true,
-    cost: { input: 3, output: 15, cache_read: 0.3, cache_write: 3.75 },
-  },
-}
 
 const CREDITS = {
   plan: "KIRO PRO",
-  credits: { limit: 1000, used: 150, overage: 0 },
+  credits: { limit: 1000, used: 150, overage: 0, overage_rate_usd: 0.04 },
   next_reset: 1782864000,
 }
 
@@ -51,7 +38,6 @@ describe("enhanceConfig", () => {
   beforeEach(() => {
     vi.mocked(fetchGatewayModels).mockResolvedValue(GATEWAY_MODELS)
     vi.mocked(fetchGatewayCredits).mockResolvedValue(CREDITS)
-    vi.mocked(fetchModelsDevData).mockResolvedValue(MODELS_DEV_DATA)
   })
 
   afterEach(() => {
@@ -102,14 +88,6 @@ describe("enhanceConfig", () => {
     })
   })
 
-  it("does not add variants for models without reasoning_efforts", async () => {
-    const config = makeConfig({ options: { apiKey: "ksk_test" } })
-    await enhanceConfig(config, mockLog)
-
-    const auto = config.provider!["kiro"].models!["auto"] as Record<string, unknown>
-    expect(auto["variants"]).toBeUndefined()
-  })
-
   it("does not override user-defined models", async () => {
     const config = makeConfig({
       options: { apiKey: "ksk_test" },
@@ -128,6 +106,15 @@ describe("enhanceConfig", () => {
     await enhanceConfig(config, mockLog)
 
     const model = config.provider!["kiro"].models!["claude-sonnet-4.6"]
-    expect(model.name).toContain("[150/1000]")
+    expect(model.name).toContain("150/1000")
+  })
+
+  it("estimates cost from rate_multiplier", async () => {
+    const config = makeConfig({ options: { apiKey: "ksk_test" } })
+    await enhanceConfig(config, mockLog)
+
+    const model = config.provider!["kiro"].models!["qwen3-coder-next"]
+    expect(model.cost?.input).toBeCloseTo(0.001)
+    expect(model.cost?.output).toBeCloseTo(0.001)
   })
 })

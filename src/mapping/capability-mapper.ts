@@ -1,4 +1,4 @@
-import type { ModelConfig, ModelsDevEntry, CreditInfo, GatewayModel } from "../types/index.js"
+import type { ModelConfig, CreditInfo, GatewayModel } from "../types/index.js"
 
 function annotate(name: string, model: GatewayModel, credits: CreditInfo | undefined): string {
   const parts: string[] = []
@@ -12,8 +12,8 @@ function annotate(name: string, model: GatewayModel, credits: CreditInfo | undef
     parts.push(`${mult}x`)
     const overageRate = credits?.overageRate ?? 0.04
     const normalRate = overageRate / 2
-    const perReq = mult * normalRate
-    parts.push(`≈$${perReq.toFixed(3)}/req`)
+    const perMToken = mult * normalRate
+    parts.push(`≈$${perMToken.toFixed(3)}/1MT`)
   }
 
   if (parts.length === 0) return name
@@ -49,17 +49,15 @@ function formatName(kiroId: string, model: GatewayModel): string {
 export function toModelConfig(
   kiroId: string,
   model: GatewayModel,
-  modelsDevEntry: ModelsDevEntry | undefined,
   credits: CreditInfo | undefined,
 ): ModelConfig {
-  const baseName = modelsDevEntry?.name ?? formatName(kiroId, model)
+  const baseName = formatName(kiroId, model)
   const result: ModelConfig = {
     name: annotate(baseName, model, credits),
     tool_call: true,
     reasoning: hasThinking(model),
   }
 
-  // Limits: gateway is authoritative
   if (model.context_window || model.max_output_tokens) {
     result.limit = {
       context: model.context_window ?? 200_000,
@@ -67,11 +65,9 @@ export function toModelConfig(
     }
   }
 
-  // Attachment: IMAGE in supported_inputs
   const supportsImage = model.supported_inputs?.some((i) => i.toUpperCase() === "IMAGE")
   result.attachment = supportsImage ?? false
 
-  // Modalities from gateway
   const modalities = deriveModalities(model)
   if (modalities) {
     type Modality = "text" | "audio" | "image" | "video" | "pdf"
@@ -81,27 +77,12 @@ export function toModelConfig(
     }
   }
 
-  // Temperature: default true unless models.dev says otherwise
-  result.temperature = modelsDevEntry?.temperature ?? true
+  result.temperature = true
 
-  // Cost: prefer models.dev, fallback to estimate from rate_multiplier
-  if (modelsDevEntry?.cost) {
-    const { input, output, cache_read, cache_write } = modelsDevEntry.cost
-    if (input !== undefined && output !== undefined) {
-      const cost: ModelConfig["cost"] = { input, output }
-      if (cache_read !== undefined) cost!.cache_read = cache_read
-      if (cache_write !== undefined) cost!.cache_write = cache_write
-      result.cost = cost
-    }
-  } else if (model.rate_multiplier !== undefined && credits) {
+  if (model.rate_multiplier !== undefined && credits) {
     const normalRate = (credits.overageRate ?? 0.04) / 2
     const perMToken = model.rate_multiplier * normalRate
     result.cost = { input: perMToken, output: perMToken }
-  }
-
-  // Metadata from models.dev
-  if (modelsDevEntry?.release_date) {
-    result.release_date = modelsDevEntry.release_date
   }
 
   return result

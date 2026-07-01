@@ -67,32 +67,7 @@ export declare const GatewayCreditsSchema: z.ZodObject<{
     next_reset: z.ZodNumber;
 }, z.core.$strip>;
 export type GatewayCredits = z.infer<typeof GatewayCreditsSchema>;
-export interface ModelsDevEntry {
-    name?: string;
-    reasoning?: boolean;
-    tool_call?: boolean;
-    attachment?: boolean;
-    temperature?: boolean;
-    structured_output?: boolean;
-    knowledge?: string;
-    release_date?: string;
-    limit?: {
-        context?: number;
-        input?: number;
-        output?: number;
-    };
-    modalities?: {
-        input?: string[];
-        output?: string[];
-    };
-    cost?: {
-        input?: number;
-        output?: number;
-        cache_read?: number;
-        cache_write?: number;
-    };
-}
-export type ModelsDevData = Record<string, ModelsDevEntry>;
+export type ModelsDevData = Record<string, unknown>;
 export interface CreditInfo {
     used: number;
     limit: number;

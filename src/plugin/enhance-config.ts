@@ -1,8 +1,6 @@
 import type { OpenCodeConfig, PluginLogger, CreditInfo, ModelConfig, GatewayModel } from "../types/index.js"
 import { fetchGatewayModels } from "../discovery/gateway-models.js"
 import { fetchGatewayCredits } from "../discovery/gateway-credits.js"
-import { fetchModelsDevData } from "../discovery/models-dev.js"
-import { mapKiroIdToModelsDev } from "../mapping/id-mapper.js"
 import { toModelConfig } from "../mapping/capability-mapper.js"
 
 export const DEFAULT_BASE_URL = "http://localhost:8000/v1"
@@ -49,19 +47,14 @@ export async function enhanceConfig(
 
   onResolved?.(baseURL, apiKey)
 
-  const [gatewayModels, gatewayCredits, modelsDevData] = await Promise.all([
+  const [gatewayModels, gatewayCredits] = await Promise.all([
     fetchGatewayModels(baseURL, apiKey),
     fetchGatewayCredits(baseURL, apiKey),
-    fetchModelsDevData(),
   ])
 
   if (!gatewayModels) {
     await log("warn", `${SERVICE}: could not reach gateway, skipping model discovery`, { baseURL })
     return
-  }
-
-  if (!modelsDevData) {
-    await log("warn", `${SERVICE}: could not fetch models.dev data, using fallback defaults`)
   }
 
   let creditInfo: CreditInfo | undefined
@@ -86,20 +79,11 @@ export async function enhanceConfig(
     const modelId = gatewayModel.id
     if (modelId in userDefinedModels) continue
 
-    const modelsDevKey = mapKiroIdToModelsDev(modelId)
-    const modelsDevEntry = modelsDevKey ? modelsDevData?.[modelsDevKey] : undefined
+    const modelConfig = toModelConfig(modelId, gatewayModel, creditInfo)
 
-    const modelConfig = toModelConfig(modelId, gatewayModel, modelsDevEntry, creditInfo)
-
-    // Inject variants for reasoning efforts (not in v1 types but works at runtime)
     const variants = buildVariants(gatewayModel)
     if (variants) {
       (modelConfig as Record<string, unknown>)["variants"] = variants
-    }
-
-    // Inject knowledge cutoff from models.dev (not in v1 types)
-    if (modelsDevEntry?.knowledge) {
-      (modelConfig as Record<string, unknown>)["knowledge"] = modelsDevEntry.knowledge
     }
 
     discoveredModels[modelId] = modelConfig
