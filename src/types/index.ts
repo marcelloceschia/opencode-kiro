@@ -95,4 +95,5 @@ export type ModelsDevData = Record<string, ModelsDevEntry>
 export interface CreditInfo {
   used: number
   limit: number
+  overageRate?: number
 }

@@ -1,7 +1,19 @@
-function annotate(name, credits) {
-    if (credits === undefined)
+function annotate(name, model, credits) {
+    const parts = [];
+    if (credits !== undefined) {
+        parts.push(`${credits.used}/${credits.limit}`);
+    }
+    const mult = model.rate_multiplier;
+    if (typeof mult === "number") {
+        parts.push(`${mult}x`);
+        // Estimated $/request: rate_multiplier × overage $/credit (defaults to $0.04)
+        const rate = credits?.overageRate ?? 0.04;
+        const perReq = mult * rate;
+        parts.push(`≈$${perReq.toFixed(3)}/req`);
+    }
+    if (parts.length === 0)
         return name;
-    return `${name} [${credits.used}/${credits.limit}]`;
+    return `${name} [${parts.join(" · ")}]`;
 }
 function hasThinking(model) {
     if (model.reasoning_efforts && model.reasoning_efforts.length > 0)
@@ -31,7 +43,7 @@ function formatName(kiroId, model) {
 export function toModelConfig(kiroId, model, modelsDevEntry, credits) {
     const baseName = modelsDevEntry?.name ?? formatName(kiroId, model);
     const result = {
-        name: annotate(baseName, credits),
+        name: annotate(baseName, model, credits),
         tool_call: true,
         reasoning: hasThinking(model),
     };

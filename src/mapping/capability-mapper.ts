@@ -1,8 +1,23 @@
 import type { ModelConfig, ModelsDevEntry, CreditInfo, GatewayModel } from "../types/index.js"
 
-function annotate(name: string, credits: CreditInfo | undefined): string {
-  if (credits === undefined) return name
-  return `${name} [${credits.used}/${credits.limit}]`
+function annotate(name: string, model: GatewayModel, credits: CreditInfo | undefined): string {
+  const parts: string[] = []
+
+  if (credits !== undefined) {
+    parts.push(`${credits.used}/${credits.limit}`)
+  }
+
+  const mult = model.rate_multiplier
+  if (typeof mult === "number") {
+    parts.push(`${mult}x`)
+    // Estimated $/request: rate_multiplier × overage $/credit (defaults to $0.04)
+    const rate = credits?.overageRate ?? 0.04
+    const perReq = mult * rate
+    parts.push(`≈$${perReq.toFixed(3)}/req`)
+  }
+
+  if (parts.length === 0) return name
+  return `${name} [${parts.join(" · ")}]`
 }
 
 function hasThinking(model: GatewayModel): boolean {
@@ -39,7 +54,7 @@ export function toModelConfig(
 ): ModelConfig {
   const baseName = modelsDevEntry?.name ?? formatName(kiroId, model)
   const result: ModelConfig = {
-    name: annotate(baseName, credits),
+    name: annotate(baseName, model, credits),
     tool_call: true,
     reasoning: hasThinking(model),
   }

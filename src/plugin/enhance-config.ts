@@ -75,6 +75,7 @@ export async function enhanceConfig(
     creditInfo = {
       used: gatewayCredits.credits.used,
       limit: gatewayCredits.credits.limit,
+      overageRate: gatewayCredits.credits.overage_rate_usd,
     }
   }
 

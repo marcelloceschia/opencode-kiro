@@ -56,6 +56,7 @@ export async function enhanceConfig(config, log, onResolved) {
         creditInfo = {
             used: gatewayCredits.credits.used,
             limit: gatewayCredits.credits.limit,
+            overageRate: gatewayCredits.credits.overage_rate_usd,
         };
     }
     const userDefinedModels = existing?.models ?? {};
