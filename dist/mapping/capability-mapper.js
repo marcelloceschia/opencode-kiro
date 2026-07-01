@@ -67,6 +67,10 @@ export function toModelConfig(kiroId, model, modelsDevEntry, credits) {
             result.cost = cost;
         }
     }
+    // Metadata from models.dev
+    if (modelsDevEntry?.release_date) {
+        result.release_date = modelsDevEntry.release_date;
+    }
     return result;
 }
 //# sourceMappingURL=capability-mapper.js.map

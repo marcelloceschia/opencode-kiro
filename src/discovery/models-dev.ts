@@ -14,6 +14,8 @@ function extractEntry(raw: unknown): ModelsDevEntry {
   if (typeof r.attachment === "boolean") entry.attachment = r.attachment
   if (typeof r.temperature === "boolean") entry.temperature = r.temperature
   if (typeof r.structured_output === "boolean") entry.structured_output = r.structured_output
+  if (typeof r.knowledge === "string") entry.knowledge = r.knowledge
+  if (typeof r.release_date === "string") entry.release_date = r.release_date
 
   const lim = r.limit
   if (lim && typeof lim === "object") {

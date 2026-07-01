@@ -67,10 +67,14 @@ export async function enhanceConfig(config, log, onResolved) {
         const modelsDevKey = mapKiroIdToModelsDev(modelId);
         const modelsDevEntry = modelsDevKey ? modelsDevData?.[modelsDevKey] : undefined;
         const modelConfig = toModelConfig(modelId, gatewayModel, modelsDevEntry, creditInfo);
-        // Inject variants for reasoning efforts (v2 feature, not in v1 types but works at runtime)
+        // Inject variants for reasoning efforts (not in v1 types but works at runtime)
         const variants = buildVariants(gatewayModel);
         if (variants) {
             modelConfig["variants"] = variants;
+        }
+        // Inject knowledge cutoff from models.dev (not in v1 types)
+        if (modelsDevEntry?.knowledge) {
+            modelConfig["knowledge"] = modelsDevEntry.knowledge;
         }
         discoveredModels[modelId] = modelConfig;
     }

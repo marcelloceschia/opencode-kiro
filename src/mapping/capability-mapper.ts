@@ -80,5 +80,10 @@ export function toModelConfig(
     }
   }
 
+  // Metadata from models.dev
+  if (modelsDevEntry?.release_date) {
+    result.release_date = modelsDevEntry.release_date
+  }
+
   return result
 }

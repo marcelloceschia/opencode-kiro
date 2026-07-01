@@ -71,6 +71,8 @@ export interface ModelsDevEntry {
   attachment?: boolean
   temperature?: boolean
   structured_output?: boolean
+  knowledge?: string
+  release_date?: string
   limit?: {
     context?: number
     input?: number

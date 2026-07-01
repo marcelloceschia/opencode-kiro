@@ -90,10 +90,15 @@ export async function enhanceConfig(
 
     const modelConfig = toModelConfig(modelId, gatewayModel, modelsDevEntry, creditInfo)
 
-    // Inject variants for reasoning efforts (v2 feature, not in v1 types but works at runtime)
+    // Inject variants for reasoning efforts (not in v1 types but works at runtime)
     const variants = buildVariants(gatewayModel)
     if (variants) {
       (modelConfig as Record<string, unknown>)["variants"] = variants
+    }
+
+    // Inject knowledge cutoff from models.dev (not in v1 types)
+    if (modelsDevEntry?.knowledge) {
+      (modelConfig as Record<string, unknown>)["knowledge"] = modelsDevEntry.knowledge
     }
 
     discoveredModels[modelId] = modelConfig
