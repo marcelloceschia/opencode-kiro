@@ -81,7 +81,7 @@ export async function enhanceConfig(
     const modelsDevKey = mapKiroIdToModelsDev(modelId)
     const modelsDevEntry = modelsDevKey ? modelsDevData?.[modelsDevKey] : undefined
 
-    discoveredModels[modelId] = toModelConfig(modelId, modelsDevEntry, creditInfo)
+    discoveredModels[modelId] = toModelConfig(modelId, gatewayModel, modelsDevEntry, creditInfo)
   }
 
   // Inject into config — user models always win

@@ -3,44 +3,59 @@ function annotate(name, credits) {
         return name;
     return `${name} [${credits.used}/${credits.limit}]`;
 }
-export function toModelConfig(kiroId, entry, credits) {
-    if (entry === undefined) {
-        return {
-            name: annotate(kiroId, credits),
-            reasoning: true,
-            tool_call: true,
-            limit: { context: 200_000, output: 64_000 },
-        };
+function hasThinking(model) {
+    const schema = model.additional_request_fields_schema;
+    return schema?.properties?.thinking !== undefined;
+}
+function deriveModalities(model) {
+    const inputs = model.supported_inputs;
+    if (!inputs || inputs.length === 0)
+        return undefined;
+    const inputModalities = [];
+    for (const i of inputs) {
+        const lower = i.toLowerCase();
+        if (lower === "text" || lower === "image" || lower === "audio" || lower === "video" || lower === "pdf") {
+            inputModalities.push(lower);
+        }
     }
-    const baseName = entry.name ?? kiroId;
+    return { input: inputModalities, output: ["text"] };
+}
+function formatName(kiroId, model) {
+    const desc = model.description;
+    if (desc && desc.length > 0 && desc.length < 60)
+        return desc;
+    return kiroId;
+}
+export function toModelConfig(kiroId, model, modelsDevEntry, credits) {
+    const baseName = modelsDevEntry?.name ?? formatName(kiroId, model);
     const result = {
         name: annotate(baseName, credits),
+        tool_call: true,
+        reasoning: hasThinking(model),
     };
-    if (entry.reasoning !== undefined)
-        result.reasoning = entry.reasoning;
-    if (entry.tool_call !== undefined)
-        result.tool_call = entry.tool_call;
-    if (entry.attachment !== undefined)
-        result.attachment = entry.attachment;
-    if (entry.temperature !== undefined)
-        result.temperature = entry.temperature;
-    if (entry.limit !== undefined) {
-        const { context, output } = entry.limit;
-        if (context !== undefined && output !== undefined) {
-            result.limit = { context, output };
-        }
+    // Limits: gateway is authoritative
+    if (model.context_window || model.max_output_tokens) {
+        result.limit = {
+            context: model.context_window ?? 200_000,
+            output: model.max_output_tokens ?? 64_000,
+        };
     }
-    if (entry.modalities !== undefined) {
-        const { input, output } = entry.modalities;
-        if (input !== undefined && output !== undefined) {
-            result.modalities = {
-                input: input,
-                output: output,
-            };
-        }
+    // Attachment: IMAGE in supported_inputs
+    const supportsImage = model.supported_inputs?.some((i) => i.toUpperCase() === "IMAGE");
+    result.attachment = supportsImage ?? false;
+    // Modalities from gateway
+    const modalities = deriveModalities(model);
+    if (modalities) {
+        result.modalities = {
+            input: modalities.input,
+            output: modalities.output,
+        };
     }
-    if (entry.cost !== undefined) {
-        const { input, output, cache_read, cache_write } = entry.cost;
+    // Temperature: default true unless models.dev says otherwise
+    result.temperature = modelsDevEntry?.temperature ?? true;
+    // Cost from models.dev (gateway doesn't provide dollar pricing)
+    if (modelsDevEntry?.cost) {
+        const { input, output, cache_read, cache_write } = modelsDevEntry.cost;
         if (input !== undefined && output !== undefined) {
             const cost = { input, output };
             if (cache_read !== undefined)

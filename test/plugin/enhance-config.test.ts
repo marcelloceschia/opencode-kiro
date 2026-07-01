@@ -20,9 +20,9 @@ import { fetchModelsDevData } from "../../src/discovery/models-dev.ts"
 const mockLog: PluginLogger = vi.fn(async () => {})
 
 const GATEWAY_MODELS = [
-  { id: "auto", object: "model" as const, created: 1, owned_by: "anthropic" },
-  { id: "claude-sonnet-4.6", object: "model" as const, created: 1, owned_by: "anthropic" },
-  { id: "qwen3-coder-next", object: "model" as const, created: 1, owned_by: "alibaba" },
+  { id: "auto", object: "model" as const, created: 1, owned_by: "kiro", context_window: 1_000_000, max_output_tokens: 64_000, supported_inputs: ["TEXT", "IMAGE"] },
+  { id: "claude-sonnet-4.6", object: "model" as const, created: 1, owned_by: "kiro", context_window: 1_000_000, max_output_tokens: 64_000, supported_inputs: ["TEXT", "IMAGE"], additional_request_fields_schema: { type: "object", properties: { thinking: { type: "object" } } } },
+  { id: "qwen3-coder-next", object: "model" as const, created: 1, owned_by: "kiro", context_window: 256_000, max_output_tokens: 64_000, supported_inputs: ["TEXT"] },
 ]
 
 const MODELS_DEV_DATA = {
@@ -153,7 +153,7 @@ describe("enhanceConfig", () => {
     // Fallback: no models.dev enrichment — only defaults
     expect(model.reasoning).toBe(true)
     expect(model.tool_call).toBe(true)
-    expect(model.limit?.context).toBe(200_000)
+    expect(model.limit?.context).toBe(1_000_000)
   })
 
   it("skips credit annotation when credits unavailable", async () => {

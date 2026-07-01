@@ -1,54 +1,76 @@
-import type { ModelConfig, ModelsDevEntry, CreditInfo } from "../types/index.js"
+import type { ModelConfig, ModelsDevEntry, CreditInfo, GatewayModel } from "../types/index.js"
 
 function annotate(name: string, credits: CreditInfo | undefined): string {
   if (credits === undefined) return name
   return `${name} [${credits.used}/${credits.limit}]`
 }
 
+function hasThinking(model: GatewayModel): boolean {
+  const schema = model.additional_request_fields_schema
+  return schema?.properties?.thinking !== undefined
+}
+
+function deriveModalities(model: GatewayModel): { input: string[]; output: string[] } | undefined {
+  const inputs = model.supported_inputs
+  if (!inputs || inputs.length === 0) return undefined
+  type Modality = "text" | "audio" | "image" | "video" | "pdf"
+  const inputModalities: Modality[] = []
+  for (const i of inputs) {
+    const lower = i.toLowerCase()
+    if (lower === "text" || lower === "image" || lower === "audio" || lower === "video" || lower === "pdf") {
+      inputModalities.push(lower as Modality)
+    }
+  }
+  return { input: inputModalities, output: ["text"] }
+}
+
+function formatName(kiroId: string, model: GatewayModel): string {
+  const desc = model.description
+  if (desc && desc.length > 0 && desc.length < 60) return desc
+  return kiroId
+}
+
 export function toModelConfig(
   kiroId: string,
-  entry: ModelsDevEntry | undefined,
+  model: GatewayModel,
+  modelsDevEntry: ModelsDevEntry | undefined,
   credits: CreditInfo | undefined,
 ): ModelConfig {
-  if (entry === undefined) {
-    return {
-      name: annotate(kiroId, credits),
-      reasoning: true,
-      tool_call: true,
-      limit: { context: 200_000, output: 64_000 },
-    }
-  }
-
-  const baseName = entry.name ?? kiroId
+  const baseName = modelsDevEntry?.name ?? formatName(kiroId, model)
   const result: ModelConfig = {
     name: annotate(baseName, credits),
+    tool_call: true,
+    reasoning: hasThinking(model),
   }
 
-  if (entry.reasoning !== undefined) result.reasoning = entry.reasoning
-  if (entry.tool_call !== undefined) result.tool_call = entry.tool_call
-  if (entry.attachment !== undefined) result.attachment = entry.attachment
-  if (entry.temperature !== undefined) result.temperature = entry.temperature
-
-  if (entry.limit !== undefined) {
-    const { context, output } = entry.limit
-    if (context !== undefined && output !== undefined) {
-      result.limit = { context, output }
+  // Limits: gateway is authoritative
+  if (model.context_window || model.max_output_tokens) {
+    result.limit = {
+      context: model.context_window ?? 200_000,
+      output: model.max_output_tokens ?? 64_000,
     }
   }
 
-  if (entry.modalities !== undefined) {
-    const { input, output } = entry.modalities
-    if (input !== undefined && output !== undefined) {
-      type Modality = "text" | "audio" | "image" | "video" | "pdf"
-      result.modalities = {
-        input: input as Modality[],
-        output: output as Modality[],
-      }
+  // Attachment: IMAGE in supported_inputs
+  const supportsImage = model.supported_inputs?.some((i) => i.toUpperCase() === "IMAGE")
+  result.attachment = supportsImage ?? false
+
+  // Modalities from gateway
+  const modalities = deriveModalities(model)
+  if (modalities) {
+    type Modality = "text" | "audio" | "image" | "video" | "pdf"
+    result.modalities = {
+      input: modalities.input as Modality[],
+      output: modalities.output as Modality[],
     }
   }
 
-  if (entry.cost !== undefined) {
-    const { input, output, cache_read, cache_write } = entry.cost
+  // Temperature: default true unless models.dev says otherwise
+  result.temperature = modelsDevEntry?.temperature ?? true
+
+  // Cost from models.dev (gateway doesn't provide dollar pricing)
+  if (modelsDevEntry?.cost) {
+    const { input, output, cache_read, cache_write } = modelsDevEntry.cost
     if (input !== undefined && output !== undefined) {
       const cost: ModelConfig["cost"] = { input, output }
       if (cache_read !== undefined) cost!.cache_read = cache_read

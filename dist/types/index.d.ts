@@ -5,12 +5,28 @@ export type ProviderConfig = NonNullable<OpenCodeConfig["provider"]>[string];
 export type ModelConfig = NonNullable<ProviderConfig["models"]>[string];
 export type LogLevel = "debug" | "info" | "warn" | "error";
 export type PluginLogger = (level: LogLevel, message: string, extra?: Record<string, unknown>) => Promise<void>;
+export declare const PromptCachingSchema: z.ZodObject<{
+    supported: z.ZodBoolean;
+    max_checkpoints: z.ZodOptional<z.ZodNumber>;
+    min_tokens_per_checkpoint: z.ZodOptional<z.ZodNumber>;
+}, z.core.$strip>;
 export declare const GatewayModelSchema: z.ZodObject<{
     id: z.ZodString;
     object: z.ZodLiteral<"model">;
     created: z.ZodNumber;
     owned_by: z.ZodString;
     description: z.ZodOptional<z.ZodString>;
+    context_window: z.ZodOptional<z.ZodNumber>;
+    max_output_tokens: z.ZodOptional<z.ZodNumber>;
+    rate_multiplier: z.ZodOptional<z.ZodNumber>;
+    rate_unit: z.ZodOptional<z.ZodString>;
+    supported_inputs: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    prompt_caching: z.ZodOptional<z.ZodObject<{
+        supported: z.ZodBoolean;
+        max_checkpoints: z.ZodOptional<z.ZodNumber>;
+        min_tokens_per_checkpoint: z.ZodOptional<z.ZodNumber>;
+    }, z.core.$strip>>;
+    additional_request_fields_schema: z.ZodOptional<z.ZodAny>;
 }, z.core.$strip>;
 export declare const GatewayModelsResponseSchema: z.ZodObject<{
     object: z.ZodLiteral<"list">;
@@ -20,6 +36,17 @@ export declare const GatewayModelsResponseSchema: z.ZodObject<{
         created: z.ZodNumber;
         owned_by: z.ZodString;
         description: z.ZodOptional<z.ZodString>;
+        context_window: z.ZodOptional<z.ZodNumber>;
+        max_output_tokens: z.ZodOptional<z.ZodNumber>;
+        rate_multiplier: z.ZodOptional<z.ZodNumber>;
+        rate_unit: z.ZodOptional<z.ZodString>;
+        supported_inputs: z.ZodOptional<z.ZodArray<z.ZodString>>;
+        prompt_caching: z.ZodOptional<z.ZodObject<{
+            supported: z.ZodBoolean;
+            max_checkpoints: z.ZodOptional<z.ZodNumber>;
+            min_tokens_per_checkpoint: z.ZodOptional<z.ZodNumber>;
+        }, z.core.$strip>>;
+        additional_request_fields_schema: z.ZodOptional<z.ZodAny>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
 export type GatewayModel = z.infer<typeof GatewayModelSchema>;
