@@ -112,11 +112,21 @@ export function createProviderHook(log, getCredentials) {
             for (const gm of gatewayModels) {
                 const devKey = mapKiroIdToModelsDev(gm.id);
                 const devEntry = devKey ? modelsDevData?.[devKey] : undefined;
-                models[gm.id] = toModelV2(gm.id, gm, provider, devEntry, creditInfo);
+                const modelV2 = toModelV2(gm.id, gm, provider, devEntry, creditInfo);
+                models[gm.id] = modelV2;
+                await log("debug", `opencode-kiro: model "${gm.id}"`, {
+                    reasoning: modelV2.capabilities.reasoning,
+                    variants: modelV2.variants,
+                    reasoning_efforts: gm.reasoning_efforts,
+                    attachment: modelV2.capabilities.attachment,
+                    input: modelV2.capabilities.input,
+                    limit: modelV2.limit,
+                });
             }
             await log("info", "opencode-kiro: provider hook — models resolved", {
                 count: Object.keys(models).length,
                 withVariants: Object.values(models).filter((m) => m.variants).length,
+                modelIds: Object.keys(models),
             });
             return models;
         },
