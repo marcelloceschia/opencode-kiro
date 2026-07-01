@@ -4,6 +4,8 @@ function annotate(name, credits) {
     return `${name} [${credits.used}/${credits.limit}]`;
 }
 function hasThinking(model) {
+    if (model.reasoning_efforts && model.reasoning_efforts.length > 0)
+        return true;
     const schema = model.additional_request_fields_schema;
     return schema?.properties?.thinking !== undefined;
 }

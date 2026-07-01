@@ -6,6 +6,7 @@ function annotate(name: string, credits: CreditInfo | undefined): string {
 }
 
 function hasThinking(model: GatewayModel): boolean {
+  if (model.reasoning_efforts && model.reasoning_efforts.length > 0) return true
   const schema = model.additional_request_fields_schema
   return schema?.properties?.thinking !== undefined
 }

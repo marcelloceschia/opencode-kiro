@@ -17,6 +17,7 @@ export const GatewayModelSchema = z.object({
     rate_unit: z.string().optional(),
     supported_inputs: z.array(z.string()).optional(),
     prompt_caching: PromptCachingSchema.optional(),
+    reasoning_efforts: z.array(z.string()).optional(),
     additional_request_fields_schema: z.any().optional(),
 });
 export const GatewayModelsResponseSchema = z.object({

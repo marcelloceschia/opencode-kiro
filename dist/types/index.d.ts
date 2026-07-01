@@ -26,6 +26,7 @@ export declare const GatewayModelSchema: z.ZodObject<{
         max_checkpoints: z.ZodOptional<z.ZodNumber>;
         min_tokens_per_checkpoint: z.ZodOptional<z.ZodNumber>;
     }, z.core.$strip>>;
+    reasoning_efforts: z.ZodOptional<z.ZodArray<z.ZodString>>;
     additional_request_fields_schema: z.ZodOptional<z.ZodAny>;
 }, z.core.$strip>;
 export declare const GatewayModelsResponseSchema: z.ZodObject<{
@@ -46,6 +47,7 @@ export declare const GatewayModelsResponseSchema: z.ZodObject<{
             max_checkpoints: z.ZodOptional<z.ZodNumber>;
             min_tokens_per_checkpoint: z.ZodOptional<z.ZodNumber>;
         }, z.core.$strip>>;
+        reasoning_efforts: z.ZodOptional<z.ZodArray<z.ZodString>>;
         additional_request_fields_schema: z.ZodOptional<z.ZodAny>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
