@@ -84,7 +84,7 @@ export function toModelConfig(
   // Temperature: default true unless models.dev says otherwise
   result.temperature = modelsDevEntry?.temperature ?? true
 
-  // Cost from models.dev (gateway doesn't provide dollar pricing)
+  // Cost: prefer models.dev, fallback to estimate from rate_multiplier
   if (modelsDevEntry?.cost) {
     const { input, output, cache_read, cache_write } = modelsDevEntry.cost
     if (input !== undefined && output !== undefined) {
@@ -93,6 +93,10 @@ export function toModelConfig(
       if (cache_write !== undefined) cost!.cache_write = cache_write
       result.cost = cost
     }
+  } else if (model.rate_multiplier !== undefined && credits) {
+    const normalRate = (credits.overageRate ?? 0.04) / 2
+    const perMToken = model.rate_multiplier * normalRate
+    result.cost = { input: perMToken, output: perMToken }
   }
 
   // Metadata from models.dev
