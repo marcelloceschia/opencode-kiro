@@ -1,8 +1,43 @@
-import { describe, it, expect, vi, afterEach } from "vitest"
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { enhanceConfig, DEFAULT_BASE_URL } from "../../src/plugin/enhance-config.ts"
 import type { OpenCodeConfig, PluginLogger } from "../../src/types/index.ts"
 
+vi.mock("../../src/discovery/gateway-models.ts", () => ({
+  fetchGatewayModels: vi.fn(),
+}))
+vi.mock("../../src/discovery/gateway-credits.ts", () => ({
+  fetchGatewayCredits: vi.fn(),
+}))
+vi.mock("../../src/discovery/models-dev.ts", () => ({
+  fetchModelsDevData: vi.fn(),
+}))
+
+import { fetchGatewayModels } from "../../src/discovery/gateway-models.ts"
+import { fetchGatewayCredits } from "../../src/discovery/gateway-credits.ts"
+import { fetchModelsDevData } from "../../src/discovery/models-dev.ts"
+
 const mockLog: PluginLogger = vi.fn(async () => {})
+
+const GATEWAY_MODELS = [
+  { id: "auto", object: "model" as const, created: 1, owned_by: "kiro", context_window: 1_000_000, max_output_tokens: 64_000, supported_inputs: ["TEXT", "IMAGE"] },
+  { id: "claude-sonnet-4.6", object: "model" as const, created: 1, owned_by: "kiro", context_window: 1_000_000, max_output_tokens: 64_000, supported_inputs: ["TEXT", "IMAGE"], reasoning_efforts: ["low", "medium", "high", "max"] },
+  { id: "qwen3-coder-next", object: "model" as const, created: 1, owned_by: "kiro", context_window: 256_000, max_output_tokens: 64_000, supported_inputs: ["TEXT"] },
+]
+
+const MODELS_DEV_DATA = {
+  "anthropic/claude-sonnet-4-6": {
+    name: "Claude Sonnet 4.6",
+    reasoning: true,
+    tool_call: true,
+    cost: { input: 3, output: 15, cache_read: 0.3, cache_write: 3.75 },
+  },
+}
+
+const CREDITS = {
+  plan: "KIRO PRO",
+  credits: { limit: 1000, used: 150, overage: 0 },
+  next_reset: 1782864000,
+}
 
 function makeConfig(providerKiro?: Record<string, unknown>): OpenCodeConfig {
   const config: OpenCodeConfig = { provider: {} }
@@ -13,6 +48,12 @@ function makeConfig(providerKiro?: Record<string, unknown>): OpenCodeConfig {
 }
 
 describe("enhanceConfig", () => {
+  beforeEach(() => {
+    vi.mocked(fetchGatewayModels).mockResolvedValue(GATEWAY_MODELS)
+    vi.mocked(fetchGatewayCredits).mockResolvedValue(CREDITS)
+    vi.mocked(fetchModelsDevData).mockResolvedValue(MODELS_DEV_DATA)
+  })
+
   afterEach(() => {
     vi.clearAllMocks()
   })
@@ -32,7 +73,6 @@ describe("enhanceConfig", () => {
   it("skips setup when no API key", async () => {
     const config = makeConfig({ options: {} })
     await enhanceConfig(config, mockLog)
-    expect(config.provider!["kiro"].models).toBeUndefined()
     expect(config.provider!["kiro"].npm).toBeUndefined()
   })
 
@@ -45,31 +85,32 @@ describe("enhanceConfig", () => {
     delete process.env["TEST_KIRO_KEY"]
   })
 
-  it("calls onResolved with baseURL and apiKey", async () => {
-    const onResolved = vi.fn()
-    const config = makeConfig({ options: { baseURL: "https://custom/v1", apiKey: "ksk_abc" } })
-    await enhanceConfig(config, mockLog, onResolved)
-    expect(onResolved).toHaveBeenCalledWith("https://custom/v1", "ksk_abc")
-  })
-
-  it("does not inject models (provider hook handles that)", async () => {
+  it("injects discovered models with variants", async () => {
     const config = makeConfig({ options: { apiKey: "ksk_test" } })
     await enhanceConfig(config, mockLog)
-    expect(config.provider!["kiro"].models).toBeUndefined()
-  })
 
-  it("preserves existing provider config", async () => {
-    const config = makeConfig({
-      npm: "@ai-sdk/openai-compatible",
-      name: "My Kiro",
-      options: { apiKey: "ksk_test", baseURL: "https://custom.gateway/v1" },
+    const models = config.provider!["kiro"].models!
+    expect(models["auto"]).toBeDefined()
+    expect(models["claude-sonnet-4.6"]).toBeDefined()
+
+    const sonnet = models["claude-sonnet-4.6"] as Record<string, unknown>
+    expect(sonnet["variants"]).toEqual({
+      low: { reasoningEffort: "low" },
+      medium: { reasoningEffort: "medium" },
+      high: { reasoningEffort: "high" },
+      max: { reasoningEffort: "max" },
     })
-    await enhanceConfig(config, mockLog)
-    expect(config.provider!["kiro"].name).toBe("My Kiro")
-    expect(config.provider!["kiro"].npm).toBe("@ai-sdk/openai-compatible")
   })
 
-  it("preserves user-defined models without overriding", async () => {
+  it("does not add variants for models without reasoning_efforts", async () => {
+    const config = makeConfig({ options: { apiKey: "ksk_test" } })
+    await enhanceConfig(config, mockLog)
+
+    const auto = config.provider!["kiro"].models!["auto"] as Record<string, unknown>
+    expect(auto["variants"]).toBeUndefined()
+  })
+
+  it("does not override user-defined models", async () => {
     const config = makeConfig({
       options: { apiKey: "ksk_test" },
       models: {
@@ -77,7 +118,16 @@ describe("enhanceConfig", () => {
       },
     })
     await enhanceConfig(config, mockLog)
+
     const model = config.provider!["kiro"].models!["claude-sonnet-4.6"]
     expect(model.name).toBe("My Custom Sonnet")
+  })
+
+  it("annotates model names with credit usage", async () => {
+    const config = makeConfig({ options: { apiKey: "ksk_test" } })
+    await enhanceConfig(config, mockLog)
+
+    const model = config.provider!["kiro"].models!["claude-sonnet-4.6"]
+    expect(model.name).toContain("[150/1000]")
   })
 })

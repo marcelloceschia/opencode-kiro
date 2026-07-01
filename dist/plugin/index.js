@@ -1,7 +1,6 @@
 import { tool } from "@opencode-ai/plugin";
 import { createRequire } from "node:module";
 import { createConfigHook } from "./config-hook.js";
-import { createProviderHook } from "./provider-hook.js";
 import { fetchGatewayCredits } from "../discovery/gateway-credits.js";
 import { DEFAULT_BASE_URL } from "./enhance-config.js";
 const SERVICE = "opencode-kiro";
@@ -44,11 +43,6 @@ export const KiroPlugin = async ({ client }) => {
         config: createConfigHook(log, (baseURL, apiKey) => {
             cachedBaseURL = baseURL;
             cachedApiKey = apiKey;
-        }),
-        provider: createProviderHook(log, () => {
-            if (!cachedBaseURL || !cachedApiKey)
-                return undefined;
-            return { baseURL: cachedBaseURL, apiKey: cachedApiKey };
         }),
         command: {
             "kiro-quota": {
