@@ -1,9 +1,18 @@
 import type { Model as ModelV2, Provider as ProviderV2 } from "@opencode-ai/sdk/v2"
+import { writeFileSync, appendFileSync } from "node:fs"
 import type { GatewayModel, ModelsDevEntry, CreditInfo, PluginLogger } from "../types/index.js"
 import { fetchGatewayModels } from "../discovery/gateway-models.js"
 import { fetchGatewayCredits } from "../discovery/gateway-credits.js"
 import { fetchModelsDevData } from "../discovery/models-dev.js"
 import { mapKiroIdToModelsDev } from "../mapping/id-mapper.js"
+
+const DEBUG_LOG = "/tmp/opencode-kiro-debug.log"
+
+function debugLog(msg: string) {
+  try {
+    appendFileSync(DEBUG_LOG, `[${new Date().toISOString()}] ${msg}\n`)
+  } catch {}
+}
 
 function hasReasoning(model: GatewayModel): boolean {
   if (model.reasoning_efforts && model.reasoning_efforts.length > 0) return true
@@ -104,15 +113,19 @@ export function createProviderHook(
   log: PluginLogger,
   getCredentials: () => { baseURL: string; apiKey: string } | undefined,
 ) {
+  debugLog(`createProviderHook called`)
   return {
     id: "kiro",
     models: async (provider: ProviderV2) => {
+      debugLog(`provider hook models() called, provider.id=${provider.id}`)
       const creds = getCredentials()
       if (!creds) {
+        debugLog("no credentials, skipping")
         await log("debug", "opencode-kiro: provider hook — no credentials, skipping")
         return {}
       }
 
+      debugLog(`fetching from ${creds.baseURL}`)
       const [gatewayModels, gatewayCredits, modelsDevData] = await Promise.all([
         fetchGatewayModels(creds.baseURL, creds.apiKey),
         fetchGatewayCredits(creds.baseURL, creds.apiKey),
@@ -120,9 +133,12 @@ export function createProviderHook(
       ])
 
       if (!gatewayModels) {
+        debugLog("gateway unreachable")
         await log("warn", "opencode-kiro: provider hook — gateway unreachable")
         return {}
       }
+
+      debugLog(`gateway returned ${gatewayModels.length} models`)
 
       let creditInfo: CreditInfo | undefined
       if (gatewayCredits) {
@@ -136,6 +152,8 @@ export function createProviderHook(
         const modelV2 = toModelV2(gm.id, gm, provider, devEntry, creditInfo)
         models[gm.id] = modelV2
 
+        debugLog(`  model "${gm.id}": reasoning=${modelV2.capabilities.reasoning}, variants=${JSON.stringify(modelV2.variants)}, efforts=${JSON.stringify(gm.reasoning_efforts)}`)
+
         await log("debug", `opencode-kiro: model "${gm.id}"`, {
           reasoning: modelV2.capabilities.reasoning,
           variants: modelV2.variants,
@@ -146,6 +164,7 @@ export function createProviderHook(
         })
       }
 
+      debugLog(`returning ${Object.keys(models).length} models`)
       await log("info", "opencode-kiro: provider hook — models resolved", {
         count: Object.keys(models).length,
         withVariants: Object.values(models).filter((m) => m.variants).length,
