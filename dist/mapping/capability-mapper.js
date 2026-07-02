@@ -6,10 +6,6 @@ function annotate(name, model, credits) {
     const mult = model.rate_multiplier;
     if (typeof mult === "number") {
         parts.push(`${mult}x`);
-        const overageRate = credits?.overageRate ?? 0.04;
-        const normalRate = overageRate / 2;
-        const perMToken = mult * normalRate;
-        parts.push(`≈$${perMToken.toFixed(3)}/1MT`);
     }
     if (parts.length === 0)
         return name;

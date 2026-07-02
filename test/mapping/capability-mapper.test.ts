@@ -83,7 +83,6 @@ describe("toModelConfig", () => {
       const result = toModelConfig("test", model, credits)
       expect(result.name).toContain("150/1000")
       expect(result.name).toContain("2.2x")
-      expect(result.name).toContain("≈$0.044/1MT")
     })
 
     it("does not annotate when no credits", () => {
